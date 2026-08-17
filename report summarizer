@@ -1,0 +1,53 @@
+# ============================================================
+# MT5 REPORT SUMMARIZER - Colab, free, no installs beyond pandas
+# Turns a raw MT5 trade export CSV into a one-page summary.
+# ============================================================
+
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# --- Upload your MT5 trades export (CSV with at least: profit, close_time) ---
+from google.colab import files
+uploaded = files.upload()
+df = pd.read_csv(list(uploaded.keys())[0])
+
+# --- Adjust these to match your actual export's column names ---
+PROFIT_COL = "profit"
+TIME_COL = "close_time"
+
+df[TIME_COL] = pd.to_datetime(df[TIME_COL])
+df = df.sort_values(TIME_COL)
+
+total_trades = len(df)
+wins = df[df[PROFIT_COL] > 0]
+losses = df[df[PROFIT_COL] < 0]
+win_rate = len(wins) / total_trades * 100 if total_trades else 0
+gross_profit = wins[PROFIT_COL].sum()
+gross_loss = abs(losses[PROFIT_COL].sum())
+profit_factor = gross_profit / gross_loss if gross_loss else float("inf")
+net_profit = df[PROFIT_COL].sum()
+
+df["equity"] = df[PROFIT_COL].cumsum()
+df["running_max"] = df["equity"].cummax()
+df["drawdown"] = df["equity"] - df["running_max"]
+max_dd = df["drawdown"].min()
+
+print("=" * 40)
+print("TRADING RESULTS SUMMARY")
+print("=" * 40)
+print(f"Total trades:     {total_trades}")
+print(f"Win rate:         {win_rate:.1f}%")
+print(f"Gross profit:     {gross_profit:.2f}")
+print(f"Gross loss:       {gross_loss:.2f}")
+print(f"Profit factor:    {profit_factor:.2f}")
+print(f"Net profit:       {net_profit:.2f}")
+print(f"Max drawdown:     {max_dd:.2f}")
+print("=" * 40)
+
+plt.figure(figsize=(9, 4))
+plt.plot(df[TIME_COL], df["equity"])
+plt.title("Equity Curve")
+plt.ylabel("Cumulative Profit")
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
